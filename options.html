@@ -1,27 +1,29 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Rewriter Options</title>
+    <title>AI Rewriter Settings</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             margin: 0;
-            padding: 20px;
+            padding: 15px;
             background-color: #f4f4f9;
             color: #333;
-            min-width: 500px;
+            width: 500px; /* Fixed width for popup */
         }
         h1, h2 {
             color: #444;
-            border-bottom: 2px solid #ddd;
-            padding-bottom: 10px;
+            border-bottom: 1px solid #ddd;
+            padding-bottom: 8px;
+            margin-top: 10px;
+            margin-bottom: 15px;
         }
         .container {
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-            margin-bottom: 20px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+            margin-bottom: 15px;
         }
         label {
             display: block;
@@ -30,15 +32,11 @@
         }
         input[type="text"], input[type="password"], select, textarea {
             width: 100%;
-            padding: 10px;
-            margin-bottom: 15px;
+            padding: 8px;
+            margin-bottom: 10px;
             border: 1px solid #ccc;
             border-radius: 4px;
             box-sizing: border-box;
-        }
-        textarea {
-            resize: vertical;
-            min-height: 80px;
         }
         button {
             background-color: #007aff;
@@ -47,78 +45,53 @@
             border: none;
             border-radius: 4px;
             cursor: pointer;
-            font-size: 16px;
+            font-size: 14px;
+            width: 100%;
+            margin-top: 5px;
         }
-        button:hover {
-            background-color: #005ecb;
-        }
-        #status {
-            margin-left: 15px;
-            font-weight: bold;
-        }
-        .prompt-list {
-            list-style: none;
-            padding: 0;
-        }
-        .prompt-item {
-            background: #f9f9f9;
-            border: 1px solid #eee;
-            padding: 15px;
-            margin-bottom: 10px;
-            border-radius: 4px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-        .prompt-item .title {
-            font-weight: bold;
-        }
-        .prompt-item .delete-btn {
-            background-color: #ff3b30;
-            font-size: 12px;
-            padding: 5px 10px;
-        }
-        .prompt-item .delete-btn:hover {
-            background-color: #c00;
-        }
+        button:hover { background-color: #005ecb; }
+        #status { margin-top: 10px; font-weight: bold; text-align: center; display: block; }
+        .param-slider { display: flex; align-items: center; gap: 15px; }
+        .param-slider input { flex-grow: 1; }
+        .param-slider span { font-family: monospace; min-width: 40px; }
     </style>
 </head>
 <body>
     <h1>AI Rewriter Settings</h1>
 
     <div class="container">
-        <h2>Configuration</h2>
+        <h2>API & Model</h2>
         <label for="api-key">Google Gemini API Key:</label>
         <input type="password" id="api-key" placeholder="Enter your API key">
+        <button id="load-models">Load Models</button>
 
-        <label for="model-select">Choose a Model:</label>
+        <label for="model-select" style="margin-top: 15px;">Choose a Model:</label>
         <select id="model-select" disabled>
-            <option>Enter API key to load models</option>
+            <option>Load models with API key</option>
         </select>
-
-        <button id="save-key">Save Key & Load Models</button>
-        <span id="status"></span>
     </div>
 
     <div class="container">
-        <h2>Custom Prompts</h2>
-        <p>Add your own rewrite commands to the context menu.</p>
-        
-        <label for="prompt-title">Menu Title:</label>
-        <input type="text" id="prompt-title" placeholder="e.g., Summarize as a Tweet">
-
-        <label for="prompt-system">System Prompt:</label>
-        <textarea id="prompt-system" placeholder="e.g., You are a social media expert. Summarize the following text into a compelling tweet under 280 characters."></textarea>
-
-        <button id="add-prompt">Add Custom Prompt</button>
-    </div>
-
-    <div class="container">
-        <h2>Your Prompts</h2>
-        <div id="custom-prompts-list">
-            <!-- Custom prompts will be dynamically inserted here -->
+        <h2>Model Parameters</h2>
+        <label>Temperature: <span id="temperature-value">1.0</span></label>
+        <div class="param-slider">
+            <span>0.0</span>
+            <input type="range" id="temperature" min="0" max="1" step="0.1" value="1.0">
+            <span>1.0</span>
         </div>
+        <small>Controls randomness. Lower values are more predictable.</small>
+
+        <label style="margin-top: 15px;">Top-P: <span id="top-p-value">0.95</span></label>
+        <div class="param-slider">
+            <span>0.1</span>
+            <input type="range" id="top-p" min="0.1" max="1" step="0.05" value="0.95">
+            <span>1.0</span>
+        </div>
+        <small>Controls diversity. Considers tokens with this probability mass.</small>
     </div>
+
+    <button id="save-settings">Save All Settings</button>
+    <div id="status"></div>
 
     <script src="options.js"></script>
 </body>
