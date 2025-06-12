@@ -1,72 +1,174 @@
-const apiKeyInput = document.getElementById('apiKey');
-const saveButton = document.getElementById('save');
-const statusDiv = document.getElementById('status');
+// Function to save the API key and selected model
+function saveSettings() {
+    const apiKey = document.getElementById('api-key').value;
+    const modelSelect = document.getElementById('model-select');
+    const selectedModel = modelSelect.value;
 
-// Load the saved API key when the options page opens
-function loadOptions() {
-    chrome.storage.sync.get(['geminiApiKey'], (result) => {
-        if (result.geminiApiKey) {
-            apiKeyInput.value = result.geminiApiKey;
-            console.log("API Key loaded.");
-        } else {
-             console.log("No API Key found in storage.");
-        }
+    chrome.storage.sync.set({
+        apiKey: apiKey,
+        selectedModel: selectedModel
+    }, () => {
+        const status = document.getElementById('status');
+        status.textContent = 'Settings saved.';
+        setTimeout(() => {
+            status.textContent = '';
+        }, 2000);
     });
 }
 
-// Save the API key
-function saveOptions() {
-    const apiKey = apiKeyInput.value.trim();
-    statusDiv.textContent = ''; // Clear previous status
-    statusDiv.className = ''; // Clear previous classes
+// Function to fetch available models from Google's API and populate the dropdown
+async function populateModels() {
+    const apiKey = document.getElementById('api-key').value;
+    const modelSelect = document.getElementById('model-select');
+    const status = document.getElementById('status');
 
     if (!apiKey) {
-        statusDiv.textContent = 'Error: API Key cannot be empty.';
-        statusDiv.className = 'error'; // Use class for styling
+        status.textContent = 'Please enter an API key first.';
         return;
     }
 
-    chrome.storage.sync.set({ geminiApiKey: apiKey }, () => {
-        // Check for runtime error (e.g., storage quota exceeded)
-        if (chrome.runtime.lastError) {
-             statusDiv.textContent = 'Error saving key: ' + chrome.runtime.lastError.message;
-             statusDiv.className = 'error';
-             console.error("Error saving API Key:", chrome.runtime.lastError);
-             return; // Stop here if saving failed
+    // Clear current options and show a loading message
+    modelSelect.innerHTML = '<option>Loading models...</option>';
+    modelSelect.disabled = true;
+    status.textContent = 'Fetching models...';
+
+    try {
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+        if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(errorData.error.message || 'Failed to fetch models. Is your API key correct?');
         }
+        const data = await response.json();
 
-        // Update status message on success
-        statusDiv.textContent = 'API Key saved successfully!';
-        statusDiv.className = 'success'; // Use class for styling
-        console.log("API Key saved.");
+        modelSelect.innerHTML = ''; // Clear the "Loading..." message
 
-        // Clear status message after a few seconds
-        setTimeout(() => {
-             // Only clear if it's still the success message
-             if (statusDiv.className === 'success') {
-                 statusDiv.textContent = '';
-                 statusDiv.className = '';
-             }
-        }, 3000);
+        // Filter for text-generation models and populate the dropdown
+        data.models.forEach(model => {
+            if (model.supportedGenerationMethods.includes('generateContent')) {
+                const option = document.createElement('option');
+                option.value = model.name; // e.g., "models/gemini-1.5-pro"
+                option.textContent = model.displayName; // e.g., "Gemini 1.5 Pro"
+                modelSelect.appendChild(option);
+            }
+        });
+
+        modelSelect.disabled = false;
+        status.textContent = 'Models loaded successfully!';
+        // Restore the previously selected model if it exists
+        chrome.storage.sync.get('selectedModel', (data) => {
+            if (data.selectedModel) {
+                modelSelect.value = data.selectedModel;
+            }
+        });
+        // Save the currently selected (first) model as the default
+        saveSettings();
+
+    } catch (error) {
+        modelSelect.innerHTML = '<option>Could not load models</option>';
+        status.textContent = `Error: ${error.message}`;
+        console.error(error);
+    }
+}
+
+// Function to render the list of custom prompts
+function renderCustomPrompts(prompts = []) {
+    const listElement = document.getElementById('custom-prompts-list');
+    listElement.innerHTML = ''; // Clear existing list
+
+    if (prompts.length === 0) {
+        listElement.innerHTML = '<p>You haven\'t added any custom prompts yet.</p>';
+        return;
+    }
+
+    const ul = document.createElement('ul');
+    ul.className = 'prompt-list';
+
+    prompts.forEach(prompt => {
+        const li = document.createElement('li');
+        li.className = 'prompt-item';
+        li.innerHTML = `
+            <div>
+                <div class="title">${prompt.title}</div>
+                <small>${prompt.prompt.substring(0, 80)}...</small>
+            </div>
+            <button class="delete-btn" data-id="${prompt.id}">Delete</button>
+        `;
+        ul.appendChild(li);
+    });
+
+    listElement.appendChild(ul);
+}
+
+// Function to add a new custom prompt
+function addCustomPrompt() {
+    const titleInput = document.getElementById('prompt-title');
+    const promptInput = document.getElementById('prompt-system');
+
+    const title = titleInput.value.trim();
+    const prompt = promptInput.value.trim();
+
+    if (!title || !prompt) {
+        alert('Please fill in both the Menu Title and the System Prompt.');
+        return;
+    }
+
+    chrome.storage.sync.get({ customPrompts: [] }, (data) => {
+        const newPrompts = data.customPrompts;
+        newPrompts.push({
+            id: `prompt_${Date.now()}`, // Simple unique ID
+            title: title,
+            prompt: prompt
+        });
+
+        chrome.storage.sync.set({ customPrompts: newPrompts }, () => {
+            renderCustomPrompts(newPrompts);
+            titleInput.value = '';
+            promptInput.value = '';
+        });
     });
 }
 
-// Add event listeners
-document.addEventListener('DOMContentLoaded', loadOptions);
-saveButton.addEventListener('click', saveOptions);
+// Function to delete a custom prompt
+function deleteCustomPrompt(promptId) {
+    chrome.storage.sync.get({ customPrompts: [] }, (data) => {
+        const filteredPrompts = data.customPrompts.filter(p => p.id !== promptId);
+        chrome.storage.sync.set({ customPrompts: filteredPrompts }, () => {
+            renderCustomPrompts(filteredPrompts);
+        });
+    });
+}
 
-// Optional: Allow saving by pressing Enter in the input field
-apiKeyInput.addEventListener('keypress', (event) => {
-    if (event.key === 'Enter') {
-        saveOptions();
-        event.preventDefault(); // Prevent potential form submission if wrapped in form
-    }
-});
+// Function to restore saved settings when the page loads
+function restoreOptions() {
+    chrome.storage.sync.get(['apiKey', 'customPrompts'], (data) => {
+        if (data.apiKey) {
+            document.getElementById('api-key').value = data.apiKey;
+            populateModels(); // Automatically load models if a key exists
+        }
+        renderCustomPrompts(data.customPrompts);
+    });
+}
 
-// Clear error/success message if user starts typing again
-apiKeyInput.addEventListener('input', () => {
-    if (statusDiv.textContent !== '') {
-        statusDiv.textContent = '';
-        statusDiv.className = '';
+// --- Event Listeners ---
+
+// Run restoreOptions when the page is loaded
+document.addEventListener('DOMContentLoaded', restoreOptions);
+
+// Save button for API key
+document.getElementById('save-key').addEventListener('click', populateModels);
+
+// Save the selected model whenever the user changes it
+document.getElementById('model-select').addEventListener('change', saveSettings);
+
+// Add prompt button
+document.getElementById('add-prompt').addEventListener('click', addCustomPrompt);
+
+// Listener for delete buttons (using event delegation)
+document.getElementById('custom-prompts-list').addEventListener('click', (event) => {
+    if (event.target && event.target.classList.contains('delete-btn')) {
+        const promptId = event.target.getAttribute('data-id');
+        if (confirm('Are you sure you want to delete this prompt?')) {
+            deleteCustomPrompt(promptId);
+        }
     }
 });
