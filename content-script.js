@@ -1,79 +1,94 @@
-// Function to replace the selected text. It now returns the range object for later use.
-function replaceSelectedText(replacementText) {
-    const sel = window.getSelection();
-    if (sel.rangeCount > 0) {
-        let range = sel.getRangeAt(0);
-        range.deleteContents();
-        range.insertNode(document.createTextNode(replacementText));
-        return range; // Return the range object itself
-    }
-    return null;
+let originalRange = null;
+let originalText = '';
+
+function createModal() {
+    // Remove if it already exists
+    const existingModal = document.getElementById('ai-rewriter-modal');
+    if (existingModal) existingModal.remove();
+
+    const modalOverlay = document.createElement('div');
+    modalOverlay.id = 'ai-rewriter-modal';
+    modalOverlay.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0, 0, 0, 0.5); z-index: 999998; display: flex; align-items: center; justify-content: center;';
+
+    const modalContent = document.createElement('div');
+    modalContent.style.cssText = 'background: white; padding: 20px; border-radius: 8px; width: 90%; max-width: 600px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);';
+    
+    modalContent.innerHTML = `
+        <h2 id="ai-modal-title" style="margin-top: 0; border-bottom: 1px solid #eee; padding-bottom: 10px;">AI Rewriter</h2>
+        <div id="ai-modal-body" style="min-height: 150px; padding: 10px 0;"></div>
+        <div id="ai-modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;"></div>
+    `;
+
+    modalOverlay.appendChild(modalContent);
+    document.body.appendChild(modalOverlay);
+
+    // Close modal if user clicks overlay
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) {
+            closeModal();
+        }
+    });
+
+    return { modalOverlay, modalContent };
 }
 
-// Function to create and show the Undo/Retry UI. It now accepts the range object.
-function showActionUI(range, originalText, promptId) {
-    const existingUI = document.getElementById('ai-rewriter-action-ui');
-    if (existingUI) existingUI.remove();
+function showLoadingState() {
+    const { modalContent } = createModal();
+    modalContent.querySelector('#ai-modal-title').innerText = 'Processing...';
+    modalContent.querySelector('#ai-modal-body').innerHTML = '<p style="text-align: center;">The AI is thinking. Please wait.</p>';
+}
 
-    const position = range.getBoundingClientRect();
-    const ui = document.createElement('div');
-    ui.id = 'ai-rewriter-action-ui';
-    // ... (all the styling from before remains the same) ...
-    ui.style.position = 'absolute';
-    ui.style.top = `${window.scrollY + position.bottom + 5}px`;
-    ui.style.left = `${window.scrollX + position.left}px`;
-    ui.style.zIndex = '999999';
-    ui.style.display = 'flex';
-    ui.style.gap = '4px';
-    ui.style.padding = '4px';
-    ui.style.backgroundColor = 'white';
-    ui.style.border = '1px solid #ccc';
-    ui.style.borderRadius = '6px';
-    ui.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)';
+function showResultState(rewrittenText, promptId) {
+    const modal = document.getElementById('ai-rewriter-modal');
+    if (!modal) return; // Should not happen, but a good safeguard
 
-    const undoButton = document.createElement('button');
-    undoButton.innerText = 'Undo';
-    styleButton(undoButton);
-    undoButton.onclick = () => {
-        // FIX: The 'range' is now directly available from the function's closure.
-        range.deleteContents();
-        range.insertNode(document.createTextNode(originalText));
-        ui.remove();
-    };
+    modal.querySelector('#ai-modal-title').innerText = 'AI Suggestion';
+    modal.querySelector('#ai-modal-body').innerHTML = `<textarea id="ai-rewritten-text" style="width: 100%; min-height: 150px; border: 1px solid #ccc; border-radius: 4px; padding: 10px; font-size: 14px;">${rewrittenText}</textarea>`;
+    
+    const footer = modal.querySelector('#ai-modal-footer');
+    footer.innerHTML = `
+        <button id="ai-cancel-btn">Cancel</button>
+        <button id="ai-retry-btn">Retry</button>
+        <button id="ai-replace-btn" style="background-color: #28a745;">Replace</button>
+    `;
 
-    const retryButton = document.createElement('button');
-    retryButton.innerText = 'Retry';
-    styleButton(retryButton);
-    retryButton.onclick = () => {
-        // Put the original text back before retrying
-        range.deleteContents();
-        range.insertNode(document.createTextNode(originalText));
+    // Style buttons
+    footer.querySelectorAll('button').forEach(btn => {
+        btn.style.cssText = 'padding: 8px 16px; border-radius: 5px; border: 1px solid #ccc; cursor: pointer;';
+    });
+    footer.querySelector('#ai-replace-btn').style.cssText += 'background-color: #28a745; color: white; border-color: #28a745;';
+
+    // Add event listeners
+    document.getElementById('ai-cancel-btn').onclick = closeModal;
+    document.getElementById('ai-retry-btn').onclick = () => {
         chrome.runtime.sendMessage({ type: 'RETRY_REWRITE', originalText, promptId });
-        ui.remove();
+        showLoadingState(); // Go back to loading state
     };
-
-    ui.appendChild(undoButton);
-    ui.appendChild(retryButton);
-    document.body.appendChild(ui);
-
-    setTimeout(() => { if (ui) ui.remove(); }, 7000);
+    document.getElementById('ai-replace-btn').onclick = () => {
+        const newText = document.getElementById('ai-rewritten-text').value;
+        if (originalRange) {
+            originalRange.deleteContents();
+            originalRange.insertNode(document.createTextNode(newText));
+        }
+        closeModal();
+    };
 }
 
-function styleButton(button) {
-    button.style.border = '1px solid #ccc';
-    button.style.backgroundColor = '#f0f0f0';
-    button.style.color = '#333';
-    button.style.padding = '5px 10px';
-    button.style.borderRadius = '4px';
-    button.style.cursor = 'pointer';
+function closeModal() {
+    const modal = document.getElementById('ai-rewriter-modal');
+    if (modal) modal.remove();
 }
 
 // Listen for messages from the background script
 chrome.runtime.onMessage.addListener((message) => {
-    if (message.type === 'REWRITE_RESULT') {
-        const range = replaceSelectedText(message.rewrittenText);
-        if (range) {
-            showActionUI(range, message.originalText, message.promptId);
+    if (message.type === 'REWRITE_LOADING') {
+        const sel = window.getSelection();
+        if (sel.rangeCount > 0) {
+            originalRange = sel.getRangeAt(0).cloneRange();
+            originalText = originalRange.toString();
+            showLoadingState();
         }
+    } else if (message.type === 'REWRITE_RESULT') {
+        showResultState(message.rewrittenText, message.promptId);
     }
 });
