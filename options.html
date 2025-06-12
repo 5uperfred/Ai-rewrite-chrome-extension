@@ -3,96 +3,61 @@
 <head>
     <title>AI Rewriter Settings</title>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            margin: 0;
-            padding: 15px;
-            background-color: #f4f4f9;
-            color: #333;
-            width: 500px; /* Fixed width for popup */
-        }
-        h1, h2 {
-            color: #444;
-            border-bottom: 1px solid #ddd;
-            padding-bottom: 8px;
-            margin-top: 10px;
-            margin-bottom: 15px;
-        }
-        .container {
-            background: white;
-            padding: 15px;
-            border-radius: 8px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-            margin-bottom: 15px;
-        }
-        label {
-            display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
-        }
-        input[type="text"], input[type="password"], select, textarea {
-            width: 100%;
-            padding: 8px;
-            margin-bottom: 10px;
-            border: 1px solid #ccc;
-            border-radius: 4px;
-            box-sizing: border-box;
-        }
-        button {
-            background-color: #007aff;
-            color: white;
-            padding: 10px 15px;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
-            width: 100%;
-            margin-top: 5px;
-        }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; padding: 0; background-color: #f4f4f9; color: #333; width: 520px; }
+        .tab-header { display: flex; background-color: #e9e9eb; }
+        .tab-button { flex-grow: 1; padding: 12px; text-align: center; cursor: pointer; border: none; background: none; font-size: 14px; font-weight: 500; color: #555; border-bottom: 3px solid transparent; }
+        .tab-button.active { color: #007aff; border-bottom: 3px solid #007aff; }
+        .tab-content { display: none; padding: 15px; }
+        .tab-content.active { display: block; }
+        h2 { color: #444; border-bottom: 1px solid #ddd; padding-bottom: 8px; margin-top: 0; margin-bottom: 15px; }
+        label { display: block; margin-bottom: 5px; font-weight: bold; }
+        input[type="text"], input[type="password"], select, textarea { width: 100%; padding: 8px; margin-bottom: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; }
+        textarea { min-height: 80px; resize: vertical; }
+        button { background-color: #007aff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; width: 100%; margin-top: 5px; }
         button:hover { background-color: #005ecb; }
-        #status { margin-top: 10px; font-weight: bold; text-align: center; display: block; }
+        #status { margin-top: 10px; font-weight: bold; text-align: center; display: block; height: 20px; }
         .param-slider { display: flex; align-items: center; gap: 15px; }
-        .param-slider input { flex-grow: 1; }
-        .param-slider span { font-family: monospace; min-width: 40px; }
+        .prompt-list { list-style: none; padding: 0; }
+        .prompt-item { background: #f9f9f9; border: 1px solid #eee; padding: 10px; margin-bottom: 8px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center; }
+        .prompt-item .delete-btn { background-color: #ff3b30; font-size: 12px; padding: 5px 10px; width: auto; }
     </style>
 </head>
 <body>
-    <h1>AI Rewriter Settings</h1>
+    <div class="tab-header">
+        <button class="tab-button active" data-tab="settings">Settings</button>
+        <button class="tab-button" data-tab="prompts">Custom Prompts</button>
+    </div>
 
-    <div class="container">
+    <div id="settings" class="tab-content active">
         <h2>API & Model</h2>
         <label for="api-key">Google Gemini API Key:</label>
         <input type="password" id="api-key" placeholder="Enter your API key">
         <button id="load-models">Load Models</button>
-
         <label for="model-select" style="margin-top: 15px;">Choose a Model:</label>
-        <select id="model-select" disabled>
-            <option>Load models with API key</option>
-        </select>
-    </div>
-
-    <div class="container">
-        <h2>Model Parameters</h2>
+        <select id="model-select" disabled><option>Load models with API key</option></select>
+        
+        <h2 style="margin-top: 20px;">Model Parameters</h2>
         <label>Temperature: <span id="temperature-value">1.0</span></label>
-        <div class="param-slider">
-            <span>0.0</span>
-            <input type="range" id="temperature" min="0" max="1" step="0.1" value="1.0">
-            <span>1.0</span>
-        </div>
-        <small>Controls randomness. Lower values are more predictable.</small>
-
+        <div class="param-slider"><span>0.0</span><input type="range" id="temperature" min="0" max="1" step="0.1" value="1.0"><span>1.0</span></div>
         <label style="margin-top: 15px;">Top-P: <span id="top-p-value">0.95</span></label>
-        <div class="param-slider">
-            <span>0.1</span>
-            <input type="range" id="top-p" min="0.1" max="1" step="0.05" value="0.95">
-            <span>1.0</span>
-        </div>
-        <small>Controls diversity. Considers tokens with this probability mass.</small>
+        <div class="param-slider"><span>0.1</span><input type="range" id="top-p" min="0.1" max="1" step="0.05" value="0.95"><span>1.0</span></div>
+        
+        <button id="save-settings" style="margin-top: 20px;">Save All Settings</button>
     </div>
 
-    <button id="save-settings">Save All Settings</button>
-    <div id="status"></div>
+    <div id="prompts" class="tab-content">
+        <h2>Add a Custom Prompt</h2>
+        <label for="prompt-title">Menu Title:</label>
+        <input type="text" id="prompt-title" placeholder="e.g., Summarize as a Tweet">
+        <label for="prompt-system">System Prompt:</label>
+        <textarea id="prompt-system" placeholder="e.g., You are a social media expert..."></textarea>
+        <button id="add-prompt">Add Custom Prompt</button>
+        
+        <h2 style="margin-top: 20px;">Your Prompts</h2>
+        <div id="custom-prompts-list"></div>
+    </div>
 
+    <div id="status"></div>
     <script src="options.js"></script>
 </body>
 </html>
