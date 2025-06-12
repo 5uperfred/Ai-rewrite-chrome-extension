@@ -1,30 +1,31 @@
 {
-    "manifest_version": 3,
-    "name": "AI Text Rewriter (Gemini)",
-    "version": "1.2",
-    "description": "Rewrites selected text in input fields using Gemini AI.",
-    "permissions": [
-      "storage",      
-      "contextMenus", 
-      "scripting",    
-      "activeTab"     
-    ],
-    "host_permissions": [
-      "<all_urls>"    
-    ],
-    "background": {
-      "service_worker": "background.js"
-    },
-    "options_page": "options.html",
-    "action": {
-      "default_title": "AI Text Rewriter Settings",
-      "default_popup": "options.html" 
-    },
-    "icons": {
-      "16": "icons/icon16.png",
-      "48": "icons/icon48.png",
-      "128": "icons/icon128.png"
+  "manifest_version": 3,
+  "name": "AI Text Rewriter",
+  "version": "2.0",
+  "description": "Select text, right-click, and rewrite it using Google Gemini.",
+  "permissions": [
+    "contextMenus",
+    "storage",
+    "scripting",
+    "offscreen"
+  ],
+  "host_permissions": [
+    "https://generativelanguage.googleapis.com/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "options_page": "options.html",
+  "action": {
+    "default_icon": {
+      "16": "images/icon16.png",
+      "48": "images/icon48.png",
+      "128": "images/icon128.png"
     }
+  },
+  "icons": {
+    "16": "images/icon16.png",
+    "48": "images/icon48.png",
+    "128": "images/icon128.png"
   }
-  
-  
+}
